@@ -1,0 +1,89 @@
+LINUX下配置SSH服务远程登录Android
+0. 确保你的设备有root权限
+
+1. 配置Android源码.
+    # source build/envsetup.sh
+    # lunch
+    选择要编译的平台
+
+
+2. 编译ssh服务相关packages.
+    # mmm -B external/zlib
+    # mmm -B external/openssl
+    # mmm -B external/openssh
+
+
+3. 编译生成文件.
+    A.zlib
+    ----------------------------------------
+    out/target/product/{your_platform}/system/lib/libz.so
+    out/target/product/{your_platform}/system/bin/gzip
+
+    B.openssl
+    ----------------------------------------
+    out/target/product/{your_platform}/system/lib/libcrypto.so
+    out/target/product/{your_platform}/system/lib/libssl.so
+    out/target/product/{your_platform}/system/bin/ssltest
+    out/target/product/{your_platform}/system/bin/openssl
+
+    C.openssh
+    ----------------------------------------
+    out/target/product/{your_platform}/system/lib/libssh.so
+    out/target/product/{your_platform}/system/bin/ssh
+    out/target/product/{your_platform}/system/bin/sftp
+    out/target/product/{your_platform}/system/bin/scp
+    out/target/product/{your_platform}/system/bin/sshd
+    out/target/product/{your_platform}/system/bin/sftp-server
+    out/target/product/{your_platform}/system/bin/ssh-keygen
+    out/target/product/{your_platform}/system/etc/ssh/sshd_config
+    out/target/product/{your_platform}/system/bin/start-ssh
+
+
+4. 将生成的文件拷贝到目标设备对应位置. 示例文件夹中有生成文件整包, 可以直接使用. 
+    adb shell中输入命令:
+    # tar zxf openssh_android_binary.tgz -C /
+    在/system/bin/下的文件要增加可执行权限:
+    # chmod 0777 /system/bin/*
+
+
+5. 配置Adnroid操作系统中的sshd_config文件.
+	adb shell中输入命令:
+    # vi /data/ssh/sshd_config
+    输入内容见示例文件.
+
+6. 启动SSH服务.
+    adb shell登录 Android 后, 输入以下命令启动ssh服务:
+    # start-ssh & 
+
+7. 配置root账户无密码登录Android.
+    A. 备份原来的sshd_config文件.
+    adb shell中输入以下命令:
+    # mount -o remount,rw /system
+    # mv /system/etc/ssh/sshd_config{,.bak}
+    # ln -s /data/ssh/sshd_config /system/etc/ssh/sshd_config
+
+    B. Android终端中生成 ssh_host_* 等等这些杂项文件.
+	adb shell中输入以下命令:
+    # cd /data/ssh/
+    # ssh-keygen -t rsa -f ssh_host_rsa_key -N ""
+    # ssh-keygen -t dsa -f ssh_host_dsa_key -N ""
+    # ssh-keygen -t ecdsa -f ssh_host_ecdsa_key -N ""
+
+    C. Linux下生成RSA公钥.
+    在Linux终端输入以下命令生成RSA公钥:
+    $ ssh-keygen -t rsa -C "your_email"
+
+    D. 上传本地id_rsa.pub文件至 Android 设备.
+    在Linux终端输入以下命令生成RSA公钥:
+    $ adb root
+    $ adb push ~/.ssh/id_rsa.pub /mnt/sdcard/id_rsa.pub
+    $ adb shell
+    # mkdir -p /data/.ssh
+    # cat /mnt/sdcard/id_rsa.pub >> /data/.ssh/authorized_keys
+    # chmod 0600 /data/.ssh/authorized_keys
+
+
+8. 测试.
+    在Linux终端中输入:
+    $ ssh root@ip_addr     登录Android设备
+    $ sftp root@ip_addr    对Android设备文件操作
